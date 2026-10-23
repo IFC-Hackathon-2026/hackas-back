@@ -52,9 +52,6 @@ class UserAdmin(BaseUserAdmin):
     )
 
 
-
-admin.site.register(models.User, UserAdmin)  # ruff: ignore[too-many-blank-lines]
-
 @admin.register(models.Categoria)
 class CategoriaAdmin(admin.ModelAdmin):
     list_display = ('nome', 'projeto', 'cor')
