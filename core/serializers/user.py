@@ -35,10 +35,21 @@ class UserSerializer(ModelSerializer):
 
 class UserRegistrationSerializer(ModelSerializer):
     password = CharField(write_only=True, min_length=8)
+    foto_attachment_key = SlugRelatedField(
+        source='foto',
+        queryset=Image.objects.all(),
+        slug_field='attachment_key',
+        required=False,
+        write_only=True,
+    )
+    foto = ImageSerializer(read_only=True)
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'name', 'password']
+        fields = [
+            'id', 'email', 'name', 'password',
+            'foto', 'foto_attachment_key',
+        ]
 
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
