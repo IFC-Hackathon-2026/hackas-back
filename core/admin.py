@@ -52,9 +52,6 @@ class UserAdmin(BaseUserAdmin):
     )
 
 
-admin.site.register(models.User, UserAdmin)
-
-
 class ParticipacaoProjetoInline(admin.TabularInline):
     model = models.ParticipacaoProjeto
     extra = 0
@@ -76,3 +73,7 @@ class ParticipacaoProjetoAdmin(admin.ModelAdmin):
     list_filter = ('cargo', 'entrou_em')
     search_fields = ('projeto__nome', 'usuario__name', 'usuario__email')
     autocomplete_fields = ('projeto', 'usuario')
+
+
+admin.site.register(models.Documento)
+admin.site.register(models.User, UserAdmin)
