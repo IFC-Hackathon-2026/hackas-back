@@ -1,3 +1,4 @@
+from .categoria import CategoriaSerializer
 from .projeto import (
     ParticipacaoProjetoSerializer,
     ProjetoSerializer,
