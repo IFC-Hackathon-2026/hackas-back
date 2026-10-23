@@ -52,8 +52,8 @@ class UserAdmin(BaseUserAdmin):
     )
 
 
-admin.site.register(models.User, UserAdmin)
 
+admin.site.register(models.User, UserAdmin)  # ruff: ignore[too-many-blank-lines]
 
 @admin.register(models.Categoria)
 class CategoriaAdmin(admin.ModelAdmin):
@@ -97,3 +97,7 @@ class StatusTaskAdmin(admin.ModelAdmin):
     list_display = ('nome', 'projeto', 'ordem', 'cor', 'finaliza_task')
     list_filter = ('finaliza_task',)
     search_fields = ('nome', 'projeto__nome')
+
+
+admin.site.register(models.Documento)
+admin.site.register(models.User, UserAdmin)
