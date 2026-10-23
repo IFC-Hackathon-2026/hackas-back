@@ -8,10 +8,15 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 from rest_framework.routers import DefaultRouter
+
 from core.views import (
+    CategoriaViewSet,
     CustomTokenObtainPairView,
     CustomTokenRefreshView,
     CustomTokenVerifyView,
+    ProjetoViewSet,
+    StatusTaskViewSet,
+    TaskViewSet,
     UserRegistrationView,
     UserViewSet,
 )
@@ -20,6 +25,10 @@ from uploader.router import router as uploader_router
 router = DefaultRouter()
 
 router.register(r'usuarios', UserViewSet, basename='usuarios')
+router.register(r'projetos', ProjetoViewSet, basename='projetos')
+router.register(r'categorias', CategoriaViewSet, basename='categorias')
+router.register(r'tarefas', TaskViewSet, basename='tarefas')
+router.register(r'status', StatusTaskViewSet, basename='status')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
