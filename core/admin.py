@@ -83,10 +83,17 @@ class ParticipacaoProjetoAdmin(admin.ModelAdmin):
 
 @admin.register(models.Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ('titulo', 'projeto', 'responsavel', 'prioridade', 'status', 'prazo')
+    list_display = ('titulo', 'projeto', 'responsaveis', 'prioridade', 'status', 'prazo')
     list_filter = ('status', 'prioridade', 'categoria')
     search_fields = ('titulo', 'descricao', 'projeto__nome')
     autocomplete_fields = ('projeto', 'categoria', 'responsavel', 'criado_por')
+
+    @admin.display(description='Responsáveis')
+    def responsaveis(self, task):
+        return ', '.join(usuario.name or usuario.email for usuario in task.responsavel.all()) or '-'
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related('responsavel')
 
 
 @admin.register(models.StatusTask)
