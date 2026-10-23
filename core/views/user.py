@@ -4,13 +4,13 @@ from rest_framework.decorators import action
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from core.models import User
 from core.serializers import UserRegistrationSerializer, UserSerializer
 
 
-class UserViewSet(ModelViewSet):
+class UserViewSet(ReadOnlyModelViewSet):
     queryset = User.objects.all().order_by('id')
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
@@ -20,10 +20,17 @@ class UserViewSet(ModelViewSet):
         description="Retorna os dados do usuário autenticado.",
         responses={200: UserSerializer, 401: None},
     )
-    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=['get', 'patch'], permission_classes=[IsAuthenticated])
     def me(self, request):
-        """ Retorna os dados do usuário autenticado."""
+        """Retorna ou atualiza os dados do usuário autenticado."""
         user = request.user
+
+        if request.method == 'PATCH':
+            serializer = UserSerializer(user, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
         serializer = UserSerializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

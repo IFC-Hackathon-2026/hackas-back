@@ -1,1 +1,2 @@
+from .projeto import ParticipacaoProjeto, Projeto
 from .user import User
