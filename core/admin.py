@@ -53,7 +53,12 @@ class UserAdmin(BaseUserAdmin):
 
 
 admin.site.register(models.User, UserAdmin)
-admin.site.register(models.Categoria)
+
+
+@admin.register(models.Categoria)
+class CategoriaAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'projeto', 'cor')
+    search_fields = ('nome', 'projeto__nome')
 
 
 class ParticipacaoProjetoInline(admin.TabularInline):
@@ -77,3 +82,18 @@ class ParticipacaoProjetoAdmin(admin.ModelAdmin):
     list_filter = ('cargo', 'entrou_em')
     search_fields = ('projeto__nome', 'usuario__name', 'usuario__email')
     autocomplete_fields = ('projeto', 'usuario')
+
+
+@admin.register(models.Task)
+class TaskAdmin(admin.ModelAdmin):
+    list_display = ('titulo', 'projeto', 'responsavel', 'prioridade', 'status', 'prazo')
+    list_filter = ('status', 'prioridade', 'categoria')
+    search_fields = ('titulo', 'descricao', 'projeto__nome')
+    autocomplete_fields = ('projeto', 'categoria', 'responsavel', 'criado_por')
+
+
+@admin.register(models.StatusTask)
+class StatusTaskAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'projeto', 'ordem', 'cor', 'finaliza_task')
+    list_filter = ('finaliza_task',)
+    search_fields = ('nome', 'projeto__nome')

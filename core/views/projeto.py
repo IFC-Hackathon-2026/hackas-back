@@ -4,7 +4,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
 
-from core.models import ParticipacaoProjeto, Projeto
+from core.models import ParticipacaoProjeto, Projeto, StatusTask
 from core.serializers import ProjetoSerializer
 
 
@@ -28,6 +28,7 @@ class ProjetoViewSet(ModelViewSet):
             usuario=self.request.user,
             cargo=ParticipacaoProjeto.Cargo.FUNDADOR,
         )
+        StatusTask.criar_status_padrao(projeto)
 
     def update(self, request, *args, **kwargs):
         projeto = self.get_object()
