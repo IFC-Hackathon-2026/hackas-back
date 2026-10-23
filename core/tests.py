@@ -1,9 +1,11 @@
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, TransactionTestCase
 from rest_framework.test import APIClient
 
-from core.models import Categoria, ParticipacaoProjeto, Projeto, StatusTask, Task, User
+from core.models import Categoria, Documento, ParticipacaoProjeto, Projeto, StatusTask, Task, User
+from uploader.models import Document
 
 
 class ProjetoTaskApiTests(TestCase):
@@ -85,3 +87,71 @@ class TaskMigrationTests(TransactionTestCase):
             self.assertEqual(list(migrada.responsavel.values_list('pk', flat=True)), [usuario.pk])
         finally:
             MigrationExecutor(connection).migrate(atual)
+
+
+class DocumentoApiTests(TestCase):
+    def setUp(self):
+        self.fundador = User.objects.create_user(email='fundador@example.com')
+        self.membro = User.objects.create_user(email='membro@example.com')
+        self.visitante = User.objects.create_user(email='visitante@example.com')
+        self.projeto = Projeto.objects.create(nome='Projeto', criador=self.fundador)
+        ParticipacaoProjeto.objects.create(
+            projeto=self.projeto,
+            usuario=self.fundador,
+            cargo=ParticipacaoProjeto.Cargo.FUNDADOR,
+        )
+        ParticipacaoProjeto.objects.create(
+            projeto=self.projeto,
+            usuario=self.membro,
+            cargo=ParticipacaoProjeto.Cargo.MEMBRO,
+        )
+        status = StatusTask.objects.create(nome='A fazer', projeto=self.projeto)
+        self.tarefa = Task.objects.create(
+            titulo='Tarefa origem', projeto=self.projeto, criado_por=self.fundador, status=status,
+        )
+        self.arquivo = Document.objects.create(
+            description='Arquivo',
+            file=SimpleUploadedFile('arquivo.pdf', b'%PDF-1.4 teste', content_type='application/pdf'),
+        )
+
+    def test_membro_pode_criar_e_listar_documento_com_tarefa_origem(self):
+        client = APIClient()
+        client.force_authenticate(self.membro)
+        response = client.post('/api/documentos/', {
+            'nome': 'Requisitos',
+            'tarefa': self.tarefa.pk,
+            'arquivo_attachment_key': str(self.arquivo.attachment_key),
+        }, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data['tarefa_origem']['id'], self.tarefa.pk)
+        self.assertEqual(response.data['enviado_por']['id'], self.membro.pk)
+
+        response = client.get(f'/api/documentos/?projeto={self.projeto.pk}&tarefa={self.tarefa.pk}')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['count'], 1)
+
+    def test_usuario_de_fora_nao_acessa_nem_cria_documento(self):
+        documento = Documento.objects.create(
+            nome='Privado', tarefa=self.tarefa, arquivo=self.arquivo, enviado_por=self.membro,
+        )
+        client = APIClient()
+        client.force_authenticate(self.visitante)
+        response = client.get(f'/api/documentos/{documento.pk}/')
+        self.assertEqual(response.status_code, 404)
+
+        outro_arquivo = Document.objects.create(
+            description='Outro',
+            file=SimpleUploadedFile('outro.pdf', b'%PDF-1.4 outro', content_type='application/pdf'),
+        )
+        response = client.post('/api/documentos/', {
+            'nome': 'Tentativa',
+            'tarefa': self.tarefa.pk,
+            'arquivo_attachment_key': str(outro_arquivo.attachment_key),
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_upload_nao_permite_listar_arquivos(self):
+        client = APIClient()
+        client.force_authenticate(self.membro)
+        response = client.get('/api/media/documents/')
+        self.assertEqual(response.status_code, 405)

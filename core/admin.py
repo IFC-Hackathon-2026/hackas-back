@@ -114,5 +114,12 @@ class StatusTaskAdmin(admin.ModelAdmin):
     search_fields = ('nome', 'projeto__nome')
 
 
-admin.site.register(models.Documento)
+@admin.register(models.Documento)
+class DocumentoAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'tarefa', 'enviado_por', 'criado_em')
+    list_filter = ('criado_em', 'tarefa__projeto')
+    search_fields = ('nome', 'tarefa__titulo', 'tarefa__projeto__nome')
+    autocomplete_fields = ('tarefa', 'arquivo', 'enviado_por')
+
+
 admin.site.register(models.User, UserAdmin)

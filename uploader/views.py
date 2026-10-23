@@ -9,7 +9,7 @@ class CreateViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, viewsets.Gen
     pass
 
 
-class DocumentUploadViewSet(CreateViewSet):
+class DocumentUploadViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     queryset = Document.objects.all()  # pylint: disable=no-member
     serializer_class = DocumentUploadSerializer
     parser_classes = [parsers.FormParser, parsers.MultiPartParser]

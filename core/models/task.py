@@ -22,7 +22,6 @@ class Task(models.Model):
     categoria = models.ManyToManyField(
         Categoria,
         related_name='tasks',
-        null=True,
         blank=True,
     )
 
@@ -35,7 +34,6 @@ class Task(models.Model):
     responsavel = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         related_name='tasks_atribuidas',
-        null=True,
         blank=True,
     )
 
