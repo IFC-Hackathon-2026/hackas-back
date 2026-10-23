@@ -13,18 +13,23 @@ class TaskSerializer(serializers.ModelSerializer):
 
     def validate(self, dados):
         projeto = dados.get('projeto', getattr(self.instance, 'projeto', None))
-        categoria = dados.get('categoria', getattr(self.instance, 'categoria', None))
-        responsavel = dados.get('responsavel', getattr(self.instance, 'responsavel', None))
+        categorias = dados.get('categoria')
+        responsaveis = dados.get('responsavel')
+        if categorias is None:
+            categorias = self.instance.categoria.all() if self.instance else []
+        if responsaveis is None:
+            responsaveis = self.instance.responsavel.all() if self.instance else []
         status = dados.get('status', getattr(self.instance, 'status', None))
         usuario = self.context['request'].user
 
         if not projeto.participantes.filter(id=usuario.id).exists():
             raise serializers.ValidationError('Você não participa deste projeto.')
 
-        if categoria and categoria.projeto_id != projeto.id:
+        if any(categoria.projeto_id != projeto.id for categoria in categorias):
             raise serializers.ValidationError({'categoria': 'A categoria deve pertencer ao projeto da tarefa.'})
 
-        if responsavel and not projeto.participantes.filter(id=responsavel.id).exists():
+        participantes = set(projeto.participantes.values_list('id', flat=True))
+        if any(responsavel.id not in participantes for responsavel in responsaveis):
             raise serializers.ValidationError({'responsavel': 'O responsável deve participar do projeto.'})
 
         if status and status.projeto_id != projeto.id:

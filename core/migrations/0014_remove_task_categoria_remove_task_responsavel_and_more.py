@@ -4,6 +4,26 @@ from django.conf import settings
 from django.db import migrations, models
 
 
+def copiar_vinculos(apps, schema_editor):
+    Task = apps.get_model('core', 'Task')
+    alias = schema_editor.connection.alias
+    for task in Task.objects.using(alias).all().iterator():
+        if task.categoria_anterior_id:
+            task.categoria.add(task.categoria_anterior_id)
+        if task.responsavel_anterior_id:
+            task.responsavel.add(task.responsavel_anterior_id)
+
+
+def restaurar_vinculos(apps, schema_editor):
+    Task = apps.get_model('core', 'Task')
+    alias = schema_editor.connection.alias
+    for task in Task.objects.using(alias).all().iterator():
+        # A relação antiga só comporta um vínculo de cada tipo.
+        task.categoria_anterior_id = task.categoria.order_by('pk').values_list('pk', flat=True).first()
+        task.responsavel_anterior_id = task.responsavel.order_by('pk').values_list('pk', flat=True).first()
+        task.save(using=alias, update_fields=['categoria_anterior', 'responsavel_anterior'])
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -11,13 +31,15 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
+        migrations.RenameField(
             model_name='task',
-            name='categoria',
+            old_name='categoria',
+            new_name='categoria_anterior',
         ),
-        migrations.RemoveField(
+        migrations.RenameField(
             model_name='task',
-            name='responsavel',
+            old_name='responsavel',
+            new_name='responsavel_anterior',
         ),
         migrations.AddField(
             model_name='task',
@@ -29,4 +51,7 @@ class Migration(migrations.Migration):
             name='responsavel',
             field=models.ManyToManyField(blank=True, null=True, related_name='tasks_atribuidas', to=settings.AUTH_USER_MODEL),
         ),
+        migrations.RunPython(copiar_vinculos, restaurar_vinculos),
+        migrations.RemoveField(model_name='task', name='categoria_anterior'),
+        migrations.RemoveField(model_name='task', name='responsavel_anterior'),
     ]

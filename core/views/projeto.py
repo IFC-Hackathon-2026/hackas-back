@@ -45,8 +45,11 @@ class ProjetoViewSet(ModelViewSet):
 
         return super().update(request, *args, **kwargs)
 
+    @transaction.atomic
     def destroy(self, request, *args, **kwargs):
         projeto = self.get_object()
         if projeto.criador_id != request.user.id:
             raise PermissionDenied('Somente o fundador pode excluir o projeto.')
+        # As tarefas protegem seus status; exclua-as antes da cascata do projeto.
+        projeto.tasks.all().delete()
         return super().destroy(request, *args, **kwargs)

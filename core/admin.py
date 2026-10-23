@@ -72,6 +72,17 @@ class ProjetoAdmin(admin.ModelAdmin):
     autocomplete_fields = ('criador',)
     inlines = (ParticipacaoProjetoInline,)
 
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        projeto = form.instance
+        if not change:
+            models.ParticipacaoProjeto.objects.update_or_create(
+                projeto=projeto,
+                usuario=projeto.criador,
+                defaults={'cargo': models.ParticipacaoProjeto.Cargo.FUNDADOR},
+            )
+            models.StatusTask.criar_status_padrao(projeto)
+
 
 @admin.register(models.ParticipacaoProjeto)
 class ParticipacaoProjetoAdmin(admin.ModelAdmin):
