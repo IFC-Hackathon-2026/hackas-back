@@ -25,6 +25,7 @@ class Projeto(models.Model):
         through='ParticipacaoProjeto',
         related_name='projetos',
     )
+
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
