@@ -19,9 +19,8 @@ class Task(models.Model):
 
     descricao = models.TextField(blank=True)
 
-    categoria = models.ForeignKey(
+    categoria = models.ManyToManyField(
         Categoria,
-        on_delete=models.SET_NULL,
         related_name='tasks',
         null=True,
         blank=True,
@@ -35,7 +34,6 @@ class Task(models.Model):
 
     responsavel = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
         related_name='tasks_atribuidas',
         null=True,
         blank=True,

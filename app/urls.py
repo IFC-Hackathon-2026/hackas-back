@@ -14,6 +14,7 @@ from core.views import (
     CustomTokenObtainPairView,
     CustomTokenRefreshView,
     CustomTokenVerifyView,
+    DocumentoViewSet,
     ProjetoViewSet,
     StatusTaskViewSet,
     TaskViewSet,
@@ -29,6 +30,7 @@ router.register(r'projetos', ProjetoViewSet, basename='projetos')
 router.register(r'categorias', CategoriaViewSet, basename='categorias')
 router.register(r'tarefas', TaskViewSet, basename='tarefas')
 router.register(r'status', StatusTaskViewSet, basename='status')
+router.register(r'documentos', DocumentoViewSet, basename='documentos')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
