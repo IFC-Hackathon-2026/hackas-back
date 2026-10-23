@@ -11,12 +11,11 @@ class UserSerializer(ModelSerializer):
         queryset=Image.objects.all(),
         slug_field='attachment_key',
         required=False,
+        allow_null=True,
         write_only=True,
     )
-    foto = ImageSerializer(
-        required=False,
-        read_only=True
-    )
+    foto = ImageSerializer(required=False, read_only=True)
+
     class Meta:
         model = User
         fields = (
@@ -29,7 +28,9 @@ class UserSerializer(ModelSerializer):
             'is_staff',
             'is_superuser',
             'last_login',
-            'groups')
+            'groups',
+        )
+        read_only_fields = ('id', 'is_active', 'is_staff', 'is_superuser', 'last_login', 'groups')
         depth = 1
 
 

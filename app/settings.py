@@ -233,8 +233,8 @@ REST_FRAMEWORK = {
 # ============================================================
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': '<PROJETO> API',
-    'DESCRIPTION': 'API para o projeto <descreva aqui seu projeto>.',
+    'TITLE': 'Farol Flow API',
+    'DESCRIPTION': 'API do Farol Flow para organização colaborativa de projetos e tarefas.',
     'VERSION': '1.0.0',
 }
 

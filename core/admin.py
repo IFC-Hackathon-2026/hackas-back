@@ -53,3 +53,26 @@ class UserAdmin(BaseUserAdmin):
 
 
 admin.site.register(models.User, UserAdmin)
+
+
+class ParticipacaoProjetoInline(admin.TabularInline):
+    model = models.ParticipacaoProjeto
+    extra = 0
+    autocomplete_fields = ('usuario',)
+
+
+@admin.register(models.Projeto)
+class ProjetoAdmin(admin.ModelAdmin):
+    list_display = ('nome', 'criador', 'criado_em', 'atualizado_em')
+    list_filter = ('criado_em', 'atualizado_em')
+    search_fields = ('nome', 'descricao', 'criador__name', 'criador__email')
+    autocomplete_fields = ('criador',)
+    inlines = (ParticipacaoProjetoInline,)
+
+
+@admin.register(models.ParticipacaoProjeto)
+class ParticipacaoProjetoAdmin(admin.ModelAdmin):
+    list_display = ('projeto', 'usuario', 'cargo', 'entrou_em')
+    list_filter = ('cargo', 'entrou_em')
+    search_fields = ('projeto__nome', 'usuario__name', 'usuario__email')
+    autocomplete_fields = ('projeto', 'usuario')
