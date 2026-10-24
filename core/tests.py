@@ -109,6 +109,42 @@ class ProjetoTaskApiTests(TestCase):
             format='json',
         )
         self.assertEqual(response.status_code, 400, response.data)
+        response = self.client.get('/api/projetos/?categorias=categoria_inexistente')
+        self.assertEqual(response.status_code, 400, response.data)
+
+    def test_destaques_sao_publicos_e_ordenados_por_participantes(self):
+        projetos = []
+        for indice, quantidade in enumerate((1, 4, 2, 3), start=1):
+            criador = User.objects.create_user(email=f'criador-{indice}@example.com')
+            projeto = Projeto.objects.create(
+                nome=f'Destaque {indice}',
+                criador=criador,
+                categorias_evento='|cientificos|',
+            )
+            ParticipacaoProjeto.objects.create(
+                projeto=projeto,
+                usuario=criador,
+                cargo=ParticipacaoProjeto.Cargo.FUNDADOR,
+            )
+            for membro_indice in range(quantidade - 1):
+                membro = User.objects.create_user(
+                    email=f'membro-{indice}-{membro_indice}@example.com',
+                )
+                ParticipacaoProjeto.objects.create(projeto=projeto, usuario=membro)
+            projetos.append(projeto)
+
+        self.client.force_authenticate(user=None)
+        response = self.client.get('/api/projetos/destaques/')
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(
+            [item['id'] for item in response.data],
+            [projetos[1].id, projetos[3].id, projetos[2].id],
+        )
+        self.assertEqual([item['total_participantes'] for item in response.data], [4, 3, 2])
+        self.assertEqual(response.data[0]['categorias'], ['cientificos'])
+        self.assertNotIn('participacoes', response.data[0])
+        self.assertNotIn('criador', response.data[0])
 
     def test_atrasadas_primeiro_e_resumos_do_projeto_e_usuario(self):
         status_aberto = self.projeto.status_tasks.get(finaliza_task=False, ordem=1)
@@ -304,11 +340,12 @@ class DocumentoApiTests(TestCase):
         }, format='json')
         self.assertEqual(response.status_code, 400)
 
-    def test_upload_nao_permite_listar_arquivos(self):
+    def test_upload_nao_lista_arquivos_sem_vinculo(self):
         client = APIClient()
         client.force_authenticate(self.membro)
         response = client.get('/api/media/documents/')
-        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['count'], 0)
 
 
 class PedidoParticipacaoApiTests(TestCase):
