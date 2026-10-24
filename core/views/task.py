@@ -26,10 +26,17 @@ class TaskViewSet(ModelViewSet):
         if not projeto_id:
             return Task.objects.none()
 
-        return Task.objects.filter(
+        queryset = Task.objects.filter(
             projeto_id=projeto_id,
             projeto__participantes=self.request.user,
-        ).annotate(
+        )
+        if self.request.query_params.get('atrasadas') == 'true':
+            queryset = queryset.filter(
+                prazo__lt=timezone.now(),
+                concluido_em__isnull=True,
+            )
+
+        return queryset.annotate(
             atrasada_ordem=Case(
                 When(prazo__lt=timezone.now(), concluido_em__isnull=True, then=Value(True)),
                 default=Value(False),

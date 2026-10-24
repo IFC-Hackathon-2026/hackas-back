@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import Q
 from rest_framework import filters
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -7,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
 
-from core.models import ParticipacaoProjeto, Projeto, StatusTask
+from core.models import CategoriaProjeto, ParticipacaoProjeto, Projeto, StatusTask
 from core.serializers import ProjetoSerializer
 
 
@@ -21,7 +22,14 @@ class ProjetoViewSet(ModelViewSet):
         queryset = Projeto.objects.all()
         if self.request.query_params.get('meus') == 'true':
             queryset = queryset.filter(participantes=self.request.user)
-        return queryset
+        categorias = self.request.query_params.get('categorias')
+        if categorias:
+            ids = [item for item in categorias.split(',') if item.isdigit()]
+            categorias_incluidas = CategoriaProjeto.objects.filter(
+                Q(id__in=ids) | Q(categoria_pai_id__in=ids)
+            )
+            queryset = queryset.filter(categorias_projeto__in=categorias_incluidas)
+        return queryset.distinct()
 
     @transaction.atomic
     def perform_create(self, serializer):
