@@ -25,7 +25,10 @@ class DocumentoSerializer(ModelSerializer):
     )
     arquivo_upload = serializers.FileField(write_only=True, required=False)
     descricao_arquivo = serializers.CharField(
-        write_only=True, required=False, allow_blank=True, max_length=255,
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        max_length=255,
     )
     arquivo = DocumentSerializer(read_only=True)
     tarefa_origem = TarefaDocumentoSerializer(source='tarefa', read_only=True)
@@ -36,6 +39,7 @@ class DocumentoSerializer(ModelSerializer):
         fields = (
             'id',
             'nome',
+            'url',
             'tarefa',
             'tarefa_origem',
             'arquivo',
@@ -68,10 +72,15 @@ class DocumentoSerializer(ModelSerializer):
         if self.instance is None:
             possui_upload = attrs.get('arquivo_upload') is not None
             possui_arquivo = attrs.get('arquivo') is not None
-            if possui_upload == possui_arquivo:
+            possui_link = bool(attrs.get('url'))
+            if sum((possui_upload, possui_arquivo, possui_link)) != 1:
                 raise serializers.ValidationError(
-                    'Informe exatamente um arquivo_upload ou arquivo_attachment_key.'
+                    'Informe exatamente uma opção: url, arquivo_upload ou arquivo_attachment_key.'
                 )
+        elif 'url' in attrs or 'arquivo' in attrs:
+            arquivo = attrs.get('arquivo', self.instance.arquivo)
+            if bool(attrs.get('url', self.instance.url)) == bool(arquivo):
+                raise serializers.ValidationError('Informe um link externo ou um arquivo, nunca ambos.')
         return attrs
 
     def create(self, validated_data):
