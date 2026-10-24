@@ -99,3 +99,26 @@ class ProjetoSerializer(serializers.ModelSerializer):
             }
             for usuario in desempenho_participantes(projeto)
         ]
+
+
+class ProjetoDestaqueSerializer(serializers.ModelSerializer):
+    """Dados públicos necessários para os cards da página inicial."""
+
+    foto = ImageSerializer(read_only=True)
+    categorias = CategoriasEventoField(source='categorias_evento', read_only=True)
+    total_participantes = serializers.IntegerField(
+        source='total_participantes_anotado',
+        read_only=True,
+    )
+
+    class Meta:
+        model = Projeto
+        fields = (
+            'id',
+            'nome',
+            'descricao',
+            'categorias',
+            'foto',
+            'total_participantes',
+        )
+        read_only_fields = fields
