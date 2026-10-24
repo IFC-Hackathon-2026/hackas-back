@@ -27,6 +27,12 @@ class PedidoParticipacaoViewSet(ModelViewSet):
         status_filtro = self.request.query_params.get('status')
         if status_filtro:
             queryset = queryset.filter(status=status_filtro)
+        tipo = self.request.query_params.get('tipo')
+        if tipo:
+            queryset = queryset.filter(tipo=tipo)
+        projeto = self.request.query_params.get('projeto')
+        if projeto:
+            queryset = queryset.filter(projeto_id=projeto)
         return queryset
 
     def _eh_organizador(self, projeto, usuario):
