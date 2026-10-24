@@ -1,5 +1,4 @@
 from .categoria import CategoriaSerializer
-from .categoria_projeto import CategoriaProjetoSerializer
 from .projeto import (
     ParticipacaoProjetoSerializer,
     ProjetoSerializer,
