@@ -2,6 +2,7 @@ from rest_framework import serializers
 from rest_framework.serializers import SlugRelatedField
 
 from core.models import ParticipacaoProjeto, Projeto, User
+from core.services import desempenho_participantes, resumo_tarefas
 from uploader.models import Image
 from uploader.serializers import ImageSerializer
 
@@ -38,6 +39,8 @@ class ProjetoSerializer(serializers.ModelSerializer):
     participacoes = ParticipacaoProjetoSerializer(many=True, read_only=True)
     total_participantes = serializers.SerializerMethodField()
     meu_cargo = serializers.SerializerMethodField()
+    resumo_tarefas = serializers.SerializerMethodField()
+    desempenho_participantes = serializers.SerializerMethodField()
 
     class Meta:
         model = Projeto
@@ -51,6 +54,8 @@ class ProjetoSerializer(serializers.ModelSerializer):
             'participacoes',
             'total_participantes',
             'meu_cargo',
+            'resumo_tarefas',
+            'desempenho_participantes',
             'criado_em',
             'atualizado_em',
         )
@@ -68,3 +73,16 @@ class ProjetoSerializer(serializers.ModelSerializer):
             if participacao.usuario_id == request.user.id:
                 return participacao.cargo
         return None
+
+    def get_resumo_tarefas(self, projeto):
+        return resumo_tarefas(projeto.tasks.all())
+
+    def get_desempenho_participantes(self, projeto):
+        return [
+            {
+                'usuario': UsuarioResumidoSerializer(usuario).data,
+                'atrasadas': usuario.tarefas_atrasadas,
+                'concluidas': usuario.tarefas_concluidas,
+            }
+            for usuario in desempenho_participantes(projeto)
+        ]

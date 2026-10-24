@@ -6,8 +6,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
-from core.models import PedidoParticipacao, User
+from core.models import User
 from core.serializers import UserRegistrationSerializer, UserSerializer
+from core.services import resumo_tarefas
 
 
 class UserViewSet(ReadOnlyModelViewSet):
@@ -29,15 +30,10 @@ class UserViewSet(ReadOnlyModelViewSet):
             serializer = UserSerializer(user, data=request.data, partial=True)
             serializer.is_valid(raise_exception=True)
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
 
         serializer = UserSerializer(user)
         data = dict(serializer.data)
-        pendentes = user.pedidos_participacao.filter(status=PedidoParticipacao.Status.PENDENTE)
-        data['pendencias'] = {
-            'convites': pendentes.filter(tipo=PedidoParticipacao.Tipo.CONVITE).count(),
-            'solicitacoes': pendentes.filter(tipo=PedidoParticipacao.Tipo.SOLICITACAO).count(),
-        }
+        data['resumo_tarefas'] = resumo_tarefas(user.tasks_atribuidas.all())
         return Response(data, status=status.HTTP_200_OK)
 
 

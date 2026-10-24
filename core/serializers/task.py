@@ -5,11 +5,16 @@ from core.models import StatusTask, Task
 
 
 class TaskSerializer(serializers.ModelSerializer):
+    atrasada = serializers.SerializerMethodField()
+
     class Meta:
         model = Task
         fields = '__all__'
         read_only_fields = ['criado_por', 'criado_em', 'atualizado_em', 'concluido_em']
         extra_kwargs = {'status': {'required': False}}
+
+    def get_atrasada(self, task):
+        return bool(task.prazo and not task.concluido_em and task.prazo < timezone.now())
 
     def validate(self, dados):
         projeto = dados.get('projeto', getattr(self.instance, 'projeto', None))

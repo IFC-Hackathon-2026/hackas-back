@@ -1,7 +1,10 @@
+from datetime import timedelta
+
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, TransactionTestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from core.models import (
@@ -65,6 +68,49 @@ class ProjetoTaskApiTests(TestCase):
         self.assertEqual(response.data['count'], 1)
         self.assertIn('next', response.data)
         self.assertIn('previous', response.data)
+
+    def test_atrasadas_primeiro_e_resumos_do_projeto_e_usuario(self):
+        status_aberto = self.projeto.status_tasks.get(finaliza_task=False, ordem=1)
+        status_final = self.projeto.status_tasks.get(finaliza_task=True)
+        ontem = timezone.now() - timedelta(days=1)
+        amanha = timezone.now() + timedelta(days=1)
+
+        atrasada = Task.objects.create(
+            projeto=self.projeto, titulo='Atrasada', status=status_aberto,
+            prazo=ontem, criado_por=self.usuario,
+        )
+        futura = Task.objects.create(
+            projeto=self.projeto, titulo='Futura', status=status_aberto,
+            prazo=amanha, criado_por=self.usuario,
+        )
+        concluida = Task.objects.create(
+            projeto=self.projeto, titulo='Concluída', status=status_final,
+            prazo=ontem, concluido_em=timezone.now(), criado_por=self.usuario,
+        )
+        for task in (atrasada, futura, concluida):
+            task.responsavel.add(self.usuario)
+
+        response = self.client.get(f'/api/tarefas/?projeto={self.projeto.pk}')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['results'][0]['id'], atrasada.pk)
+        self.assertTrue(response.data['results'][0]['atrasada'])
+        concluida_data = next(item for item in response.data['results'] if item['id'] == concluida.pk)
+        self.assertFalse(concluida_data['atrasada'])
+
+        response = self.client.get(f'/api/projetos/{self.projeto.pk}/')
+        self.assertEqual(response.data['resumo_tarefas'], {
+            'total': 3, 'concluidas': 1, 'nao_concluidas': 2, 'atrasadas': 1,
+            'progresso': 33,
+        })
+        meu_desempenho = response.data['desempenho_participantes'][0]
+        self.assertEqual(meu_desempenho['usuario']['id'], self.usuario.pk)
+        self.assertEqual(meu_desempenho['concluidas'], 1)
+        self.assertEqual(meu_desempenho['atrasadas'], 1)
+        response = self.client.get('/api/usuarios/me/')
+        self.assertEqual(response.data['resumo_tarefas'], {
+            'total': 3, 'concluidas': 1, 'nao_concluidas': 2, 'atrasadas': 1,
+            'progresso': 33,
+        })
 
     def test_fundador_promove_e_remove_participante(self):
         membro = User.objects.create_user(email='membro-projeto@example.com')
@@ -248,8 +294,11 @@ class PedidoParticipacaoApiTests(TestCase):
         self.assertEqual(response.data['tipo'], 'convite')
         pedido_id = response.data['id']
 
-        response = self.client_de(self.candidato).get('/api/usuarios/me/')
-        self.assertEqual(response.data['pendencias']['convites'], 1)
+        response = self.client_de(self.candidato).get(
+            '/api/pedidos-participacao/?status=pendente&tipo=convite'
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['count'], 1)
         response = self.client_de(self.candidato).post(
             f'/api/pedidos-participacao/{pedido_id}/recusar/', {}, format='json',
         )
