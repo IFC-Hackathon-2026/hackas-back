@@ -1,6 +1,7 @@
 from .categoria import CategoriaSerializer
 from .projeto import (
     ParticipacaoProjetoSerializer,
+    ProjetoDestaqueSerializer,
     ProjetoSerializer,
 )
 from .status_task import StatusTaskSerializer

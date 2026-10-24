@@ -1,14 +1,17 @@
 from django.db import transaction
+from django.db.models import Count, Q
 from rest_framework import filters
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
 
-from core.models import ParticipacaoProjeto, Projeto, StatusTask
-from core.serializers import ProjetoSerializer
+from core.models import (
+    CATEGORIAS_EVENTO, CATEGORIAS_EVENTO_FILHAS, ParticipacaoProjeto, Projeto, StatusTask,
+)
+from core.serializers import ProjetoDestaqueSerializer, ProjetoSerializer
 
 
 class ProjetoViewSet(ModelViewSet):
@@ -21,7 +24,49 @@ class ProjetoViewSet(ModelViewSet):
         queryset = Projeto.objects.all()
         if self.request.query_params.get('meus') == 'true':
             queryset = queryset.filter(participantes=self.request.user)
-        return queryset
+        categorias = self.request.query_params.get('categorias')
+        if categorias:
+            recebidas = {item for item in categorias.split(',') if item}
+            validas = {valor for valor, _ in CATEGORIAS_EVENTO} | set(CATEGORIAS_EVENTO_FILHAS)
+            invalidas = recebidas - validas
+            if invalidas:
+                raise ValidationError({
+                    'categorias': f"Filtros inválidos: {', '.join(sorted(invalidas))}.",
+                })
+
+            selecionadas = set(recebidas)
+            pendentes = list(selecionadas)
+            while pendentes:
+                categoria = pendentes.pop()
+                for filha in CATEGORIAS_EVENTO_FILHAS.get(categoria, ()):
+                    if filha not in selecionadas:
+                        selecionadas.add(filha)
+                        pendentes.append(filha)
+
+            filtro = Q()
+            for categoria in selecionadas:
+                filtro |= Q(categorias_evento__contains=f'|{categoria}|')
+            queryset = queryset.filter(filtro)
+        return queryset.distinct()
+
+    @action(
+        detail=False,
+        methods=['get'],
+        permission_classes=[AllowAny],
+        url_path='destaques',
+    )
+    def destaques(self, request):
+        projetos = (
+            Projeto.objects
+            .annotate(total_participantes_anotado=Count('participacoes'))
+            .order_by('-total_participantes_anotado', '-atualizado_em', 'id')[:3]
+        )
+        serializer = ProjetoDestaqueSerializer(
+            projetos,
+            many=True,
+            context=self.get_serializer_context(),
+        )
+        return Response(serializer.data)
 
     @transaction.atomic
     def perform_create(self, serializer):

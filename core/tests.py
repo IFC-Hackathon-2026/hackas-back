@@ -66,6 +66,104 @@ class ProjetoTaskApiTests(TestCase):
         self.assertIn('next', response.data)
         self.assertIn('previous', response.data)
 
+    def test_categorias_de_projeto_e_filtros_hierarquicos(self):
+        response = self.client.patch(
+            f'/api/projetos/{self.projeto.pk}/',
+            {'categorias': ['cientificos', 'cientificos']},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['categorias'], ['cientificos'])
+
+        response = self.client.post('/api/projetos/', {
+            'nome': 'Workshop aberto',
+            'categorias': ['workshops'],
+        }, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        workshop_id = response.data['id']
+
+        response = self.client.post('/api/projetos/', {
+            'nome': 'Festival cultural',
+            'categorias': ['culturais'],
+        }, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        cultural_id = response.data['id']
+
+        response = self.client.get('/api/projetos/?categorias=educacionais_profissionais')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['count'], 2)
+
+        response = self.client.get('/api/projetos/?categorias=academicos')
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['id'], self.projeto.pk)
+
+        outro_usuario = User.objects.create_user(email='outro-filtro@example.com')
+        externo = Projeto.objects.create(
+            nome='Pesquisa científica externa',
+            criador=outro_usuario,
+            categorias_evento='|cientificos|',
+        )
+        response = self.client.get('/api/projetos/?categorias=academicos&meus=true')
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['id'], self.projeto.pk)
+
+        response = self.client.get('/api/projetos/?categorias=cientificos,culturais')
+        self.assertEqual(response.data['count'], 3)
+        self.assertEqual(
+            {item['id'] for item in response.data['results']},
+            {self.projeto.pk, cultural_id, externo.pk},
+        )
+
+        response = self.client.get(
+            '/api/projetos/?categorias=educacionais_profissionais&search=Workshop'
+        )
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['id'], workshop_id)
+
+        response = self.client.patch(
+            f'/api/projetos/{self.projeto.pk}/',
+            {'categorias': ['educacionais_profissionais']},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400, response.data)
+
+        response = self.client.get('/api/projetos/?categorias=inexistente')
+        self.assertEqual(response.status_code, 400, response.data)
+
+    def test_destaques_sao_publicos_e_ordenados_por_participantes(self):
+        projetos = []
+        for indice, quantidade in enumerate((1, 4, 2, 3), start=1):
+            criador = User.objects.create_user(email=f'criador-{indice}@example.com')
+            projeto = Projeto.objects.create(
+                nome=f'Destaque {indice}',
+                criador=criador,
+                categorias_evento='|cientificos|',
+            )
+            ParticipacaoProjeto.objects.create(
+                projeto=projeto,
+                usuario=criador,
+                cargo=ParticipacaoProjeto.Cargo.FUNDADOR,
+            )
+            for membro_indice in range(quantidade - 1):
+                membro = User.objects.create_user(
+                    email=f'membro-{indice}-{membro_indice}@example.com',
+                )
+                ParticipacaoProjeto.objects.create(projeto=projeto, usuario=membro)
+            projetos.append(projeto)
+
+        self.client.force_authenticate(user=None)
+        response = self.client.get('/api/projetos/destaques/')
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(
+            [item['id'] for item in response.data],
+            [projetos[1].id, projetos[3].id, projetos[2].id],
+        )
+        self.assertEqual([item['total_participantes'] for item in response.data], [4, 3, 2])
+        self.assertEqual(response.data[0]['categorias'], ['cientificos'])
+        self.assertNotIn('participacoes', response.data[0])
+        self.assertNotIn('criador', response.data[0])
+
     def test_fundador_promove_e_remove_participante(self):
         membro = User.objects.create_user(email='membro-projeto@example.com')
         participacao = ParticipacaoProjeto.objects.create(
