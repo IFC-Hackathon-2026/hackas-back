@@ -1,7 +1,8 @@
 from rest_framework import serializers
-from rest_framework.serializers import SlugRelatedField
+from rest_framework.serializers import PrimaryKeyRelatedField, SlugRelatedField
 
-from core.models import ParticipacaoProjeto, Projeto, User
+from core.models import CategoriaProjeto, ParticipacaoProjeto, Projeto, User
+from core.serializers.categoria_projeto import CategoriaProjetoSerializer
 from core.services import desempenho_participantes, resumo_tarefas
 from uploader.models import Image
 from uploader.serializers import ImageSerializer
@@ -41,6 +42,14 @@ class ProjetoSerializer(serializers.ModelSerializer):
     meu_cargo = serializers.SerializerMethodField()
     resumo_tarefas = serializers.SerializerMethodField()
     desempenho_participantes = serializers.SerializerMethodField()
+    categorias = CategoriaProjetoSerializer(source='categorias_projeto', many=True, read_only=True)
+    categoria_ids = PrimaryKeyRelatedField(
+        source='categorias_projeto',
+        queryset=CategoriaProjeto.objects.all(),
+        many=True,
+        required=False,
+        write_only=True,
+    )
 
     class Meta:
         model = Projeto
@@ -48,6 +57,8 @@ class ProjetoSerializer(serializers.ModelSerializer):
             'id',
             'nome',
             'descricao',
+            'categorias',
+            'categoria_ids',
             'foto',
             'foto_attachment_key',
             'criador',

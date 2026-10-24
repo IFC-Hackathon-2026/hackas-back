@@ -4,6 +4,13 @@ from rest_framework import serializers
 from core.models import StatusTask, Task
 
 
+class TaskListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Task
+        fields = ('id', 'titulo', 'prioridade', 'criado_em', 'prazo', 'categoria')
+        read_only_fields = fields
+
+
 class TaskSerializer(serializers.ModelSerializer):
     atrasada = serializers.SerializerMethodField()
 
