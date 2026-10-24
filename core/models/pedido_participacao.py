@@ -11,6 +11,7 @@ class PedidoParticipacao(models.Model):
         PENDENTE = 'pendente', 'Pendente'
         ACEITO = 'aceito', 'Aceito'
         RECUSADO = 'recusado', 'Recusado'
+        REMOVIDO = 'removido', 'Removido da equipe'
 
     projeto = models.ForeignKey('core.Projeto', on_delete=models.CASCADE, related_name='pedidos_participacao')
     usuario = models.ForeignKey(

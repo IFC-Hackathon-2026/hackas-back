@@ -25,6 +25,11 @@ class Projeto(models.Model):
         through='ParticipacaoProjeto',
         related_name='projetos',
     )
+    categorias_projeto = models.ManyToManyField(
+        'core.CategoriaProjeto',
+        related_name='projetos',
+        blank=True,
+    )
 
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
