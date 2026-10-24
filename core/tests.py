@@ -83,16 +83,29 @@ class ProjetoTaskApiTests(TestCase):
             criador=self.usuario,
             categorias_evento='|workshops|',
         )
+        cientifico = Projeto.objects.create(
+            nome='Congresso científico',
+            criador=self.usuario,
+            categorias_evento='|cientificos|',
+        )
 
         response = self.client.get('/api/projetos/?categorias=educacionais_profissionais')
-        self.assertEqual(response.data['count'], 2)
+        self.assertEqual(response.data['count'], 3)
         response = self.client.get('/api/projetos/?categorias=academicos')
+        self.assertEqual(response.data['count'], 2)
+        response = self.client.get('/api/projetos/?categorias=cientificos')
         self.assertEqual(response.data['count'], 1)
-        self.assertEqual(response.data['results'][0]['id'], self.projeto.pk)
+        self.assertEqual(response.data['results'][0]['id'], cientifico.pk)
 
         response = self.client.patch(
             f'/api/projetos/{self.projeto.pk}/',
             {'categorias': ['categoria_inexistente']},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400, response.data)
+        response = self.client.patch(
+            f'/api/projetos/{self.projeto.pk}/',
+            {'categorias': ['educacionais_profissionais']},
             format='json',
         )
         self.assertEqual(response.status_code, 400, response.data)

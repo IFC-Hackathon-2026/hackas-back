@@ -5,13 +5,39 @@ from uploader.models import Image
 
 
 CATEGORIAS_EVENTO = (
-    ('educacionais_profissionais', 'Educacionais e Profissionais'),
     ('academicos', 'Acadêmicos'),
+    ('cientificos', 'Científicos'),
+    ('tecnologicos', 'Tecnológicos'),
+    ('educacionais', 'Educacionais'),
+    ('institucionais', 'Institucionais'),
+    ('corporativos', 'Corporativos'),
     ('workshops', 'Workshops'),
     ('palestras', 'Palestras'),
+    ('culturais_artisticos', 'Culturais e Artísticos'),
     ('culturais', 'Culturais'),
+    ('artisticos', 'Artísticos'),
+    ('gastronomicos', 'Gastronômicos'),
+    ('esportivos_competitivos', 'Esportivos e Competitivos'),
     ('esportivos', 'Esportivos'),
+    ('competitivos', 'Competitivos'),
+    ('sociais_recreativos', 'Sociais e Recreativos'),
+    ('sociais', 'Sociais'),
+    ('recreativos', 'Recreativos'),
+    ('comunitarios', 'Comunitários'),
+    ('politicos_religiosos', 'Políticos e Religiosos'),
+    ('politicos', 'Políticos'),
+    ('diplomaticos', 'Diplomáticos'),
+    ('religiosos', 'Religiosos'),
 )
+
+CATEGORIAS_EVENTO_FILHAS = {
+    'educacionais_profissionais': ('academicos', 'workshops', 'palestras'),
+    'academicos': ('cientificos', 'tecnologicos', 'educacionais', 'institucionais', 'corporativos'),
+    'culturais_artisticos': ('culturais', 'artisticos', 'gastronomicos'),
+    'esportivos_competitivos': ('esportivos', 'competitivos'),
+    'sociais_recreativos': ('sociais', 'recreativos', 'comunitarios'),
+    'politicos_religiosos': ('politicos', 'diplomaticos', 'religiosos'),
+}
 
 
 class Projeto(models.Model):
@@ -35,7 +61,7 @@ class Projeto(models.Model):
         through='ParticipacaoProjeto',
         related_name='projetos',
     )
-    categorias_evento = models.CharField(max_length=160, blank=True, default='')
+    categorias_evento = models.CharField(max_length=500, blank=True, default='')
 
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
