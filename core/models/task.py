@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from core.models.categoria import Categoria
 from core.models.projeto import Projeto
@@ -12,6 +13,11 @@ class Task(models.Model):
         MEDIA = 'media', 'Média'
         ALTA = 'alta', 'Alta'
         URGENTE = 'urgente', 'Urgente'
+
+    class Situacao(models.TextChoices):
+        PENDENTE = 'pendente', 'Pendente'
+        ATRASADA = 'atrasada', 'Atrasada'
+        CONCLUIDA = 'concluida', 'Concluída'
 
     projeto = models.ForeignKey(Projeto, on_delete=models.CASCADE, related_name='tasks')
 
@@ -56,3 +62,11 @@ class Task(models.Model):
 
     def __str__(self):
         return self.titulo
+
+    @property
+    def situacao(self):
+        if self.concluido_em:
+            return self.Situacao.CONCLUIDA
+        if self.prazo and self.prazo < timezone.now():
+            return self.Situacao.ATRASADA
+        return self.Situacao.PENDENTE

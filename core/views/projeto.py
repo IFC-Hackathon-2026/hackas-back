@@ -8,7 +8,9 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
 
-from core.models import CategoriaProjeto, ParticipacaoProjeto, Projeto, StatusTask
+from core.models import (
+    CATEGORIAS_EVENTO, CATEGORIAS_EVENTO_FILHAS, ParticipacaoProjeto, Projeto, StatusTask,
+)
 from core.serializers import ProjetoSerializer
 
 
@@ -24,11 +26,20 @@ class ProjetoViewSet(ModelViewSet):
             queryset = queryset.filter(participantes=self.request.user)
         categorias = self.request.query_params.get('categorias')
         if categorias:
-            ids = [item for item in categorias.split(',') if item.isdigit()]
-            categorias_incluidas = CategoriaProjeto.objects.filter(
-                Q(id__in=ids) | Q(categoria_pai_id__in=ids)
-            )
-            queryset = queryset.filter(categorias_projeto__in=categorias_incluidas)
+            validas = {valor for valor, _ in CATEGORIAS_EVENTO} | set(CATEGORIAS_EVENTO_FILHAS)
+            selecionadas = {item for item in categorias.split(',') if item in validas}
+            pendentes = list(selecionadas)
+            while pendentes:
+                categoria = pendentes.pop()
+                for filha in CATEGORIAS_EVENTO_FILHAS.get(categoria, ()):
+                    if filha not in selecionadas:
+                        selecionadas.add(filha)
+                        pendentes.append(filha)
+            filtro = Q()
+            for categoria in selecionadas:
+                filtro |= Q(categorias_evento__contains=f'|{categoria}|')
+            if selecionadas:
+                queryset = queryset.filter(filtro)
         return queryset.distinct()
 
     @transaction.atomic

@@ -2,7 +2,9 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import BooleanField, Case, Value, When
 from django.utils import timezone
 from rest_framework import filters
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from core.models import Task
@@ -17,7 +19,7 @@ class TaskViewSet(ModelViewSet):
     search_fields = ['titulo', 'descricao']
 
     def get_serializer_class(self):
-        if self.action == 'list':
+        if self.action in ('list', 'atrasadas'):
             return TaskListSerializer
         return TaskSerializer
 
@@ -43,6 +45,18 @@ class TaskViewSet(ModelViewSet):
                 output_field=BooleanField(),
             ),
         ).order_by('-atrasada_ordem', 'prazo', '-criado_em')
+
+    @action(detail=False, methods=['get'])
+    def atrasadas(self, request):
+        queryset = self.get_queryset().filter(
+            prazo__lt=timezone.now(),
+            concluido_em__isnull=True,
+        )
+        pagina = self.paginate_queryset(queryset)
+        if pagina is not None:
+            serializer = self.get_serializer(pagina, many=True)
+            return self.get_paginated_response(serializer.data)
+        return Response(self.get_serializer(queryset, many=True).data)
 
     def perform_create(self, serializer):
         serializer.save(criado_por=self.request.user)
