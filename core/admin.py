@@ -92,6 +92,14 @@ class ParticipacaoProjetoAdmin(admin.ModelAdmin):
     autocomplete_fields = ('projeto', 'usuario')
 
 
+@admin.register(models.PedidoParticipacao)
+class PedidoParticipacaoAdmin(admin.ModelAdmin):
+    list_display = ('projeto', 'usuario', 'tipo', 'status', 'criado_em')
+    list_filter = ('tipo', 'status')
+    search_fields = ('projeto__nome', 'usuario__name', 'usuario__email')
+    autocomplete_fields = ('projeto', 'usuario', 'criado_por')
+
+
 @admin.register(models.Task)
 class TaskAdmin(admin.ModelAdmin):
     list_display = ('titulo', 'projeto', 'responsaveis', 'prioridade', 'status', 'prazo')

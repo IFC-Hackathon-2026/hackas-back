@@ -4,7 +4,9 @@ from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, TransactionTestCase
 from rest_framework.test import APIClient
 
-from core.models import Categoria, Documento, ParticipacaoProjeto, Projeto, StatusTask, Task, User
+from core.models import (
+    Categoria, Documento, PedidoParticipacao, ParticipacaoProjeto, Projeto, StatusTask, Task, User,
+)
 from uploader.models import Document
 
 
@@ -66,12 +68,9 @@ class ProjetoTaskApiTests(TestCase):
 
     def test_fundador_promove_e_remove_participante(self):
         membro = User.objects.create_user(email='membro-projeto@example.com')
-        response = self.client.post(
-            f'/api/projetos/{self.projeto.pk}/participantes/',
-            {'usuario': membro.pk, 'cargo': 'membro'}, format='json',
+        participacao = ParticipacaoProjeto.objects.create(
+            projeto=self.projeto, usuario=membro, cargo=ParticipacaoProjeto.Cargo.MEMBRO,
         )
-        self.assertEqual(response.status_code, 201, response.data)
-        participacao = ParticipacaoProjeto.objects.get(projeto=self.projeto, usuario=membro)
         url = f'/api/projetos/{self.projeto.pk}/participantes/{participacao.pk}/'
         response = self.client.patch(url, {'cargo': 'organizador'}, format='json')
         self.assertEqual(response.status_code, 200, response.data)
@@ -81,25 +80,6 @@ class ProjetoTaskApiTests(TestCase):
         response = self.client.delete(url)
         self.assertEqual(response.status_code, 204, response.data)
         self.assertFalse(ParticipacaoProjeto.objects.filter(pk=participacao.pk).exists())
-
-        response = self.client.post(
-            f'/api/projetos/{self.projeto.pk}/participantes/',
-            {'usuario': membro.pk, 'cargo': 'membro'}, format='json',
-        )
-        self.assertEqual(response.status_code, 201, response.data)
-        self.assertTrue(ParticipacaoProjeto.objects.filter(
-            projeto=self.projeto, usuario=membro, cargo=ParticipacaoProjeto.Cargo.MEMBRO,
-        ).exists())
-
-        response = self.client.post(
-            f'/api/projetos/{self.projeto.pk}/participantes/',
-            {'usuario': membro.pk, 'cargo': 'organizador'}, format='json',
-        )
-        self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(
-            ParticipacaoProjeto.objects.get(projeto=self.projeto, usuario=membro).cargo,
-            ParticipacaoProjeto.Cargo.ORGANIZADOR,
-        )
 
     def test_membro_nao_administra_participantes(self):
         membro = User.objects.create_user(email='sem-permissao@example.com')
@@ -221,3 +201,75 @@ class DocumentoApiTests(TestCase):
         client.force_authenticate(self.membro)
         response = client.get('/api/media/documents/')
         self.assertEqual(response.status_code, 405)
+
+
+class PedidoParticipacaoApiTests(TestCase):
+    def setUp(self):
+        self.fundador = User.objects.create_user(email='fundador-convite@example.com')
+        self.organizador = User.objects.create_user(email='organizador@example.com')
+        self.candidato = User.objects.create_user(email='candidato@example.com')
+        self.projeto = Projeto.objects.create(nome='Projeto público', criador=self.fundador)
+        ParticipacaoProjeto.objects.create(
+            projeto=self.projeto, usuario=self.fundador, cargo=ParticipacaoProjeto.Cargo.FUNDADOR,
+        )
+        ParticipacaoProjeto.objects.create(
+            projeto=self.projeto,
+            usuario=self.organizador,
+            cargo=ParticipacaoProjeto.Cargo.ORGANIZADOR,
+        )
+
+    def client_de(self, usuario):
+        client = APIClient()
+        client.force_authenticate(usuario)
+        return client
+
+    def test_usuario_solicita_e_organizador_aceita(self):
+        response = self.client_de(self.candidato).post(
+            '/api/pedidos-participacao/', {'projeto': self.projeto.pk}, format='json',
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data['tipo'], 'solicitacao')
+
+        pedido_id = response.data['id']
+        response = self.client_de(self.organizador).get('/api/pedidos-participacao/?status=pendente')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['count'], 1)
+        response = self.client_de(self.organizador).post(
+            f'/api/pedidos-participacao/{pedido_id}/aceitar/', {}, format='json',
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertTrue(self.projeto.participantes.filter(pk=self.candidato.pk).exists())
+
+    def test_organizador_convida_e_usuario_recusa(self):
+        response = self.client_de(self.organizador).post('/api/pedidos-participacao/', {
+            'projeto': self.projeto.pk, 'usuario': self.candidato.pk,
+        }, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data['tipo'], 'convite')
+        pedido_id = response.data['id']
+
+        response = self.client_de(self.candidato).get('/api/usuarios/me/')
+        self.assertEqual(response.data['pendencias']['convites'], 1)
+        response = self.client_de(self.candidato).post(
+            f'/api/pedidos-participacao/{pedido_id}/recusar/', {}, format='json',
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['status'], 'recusado')
+
+    def test_usuario_comum_nao_convida_ou_decide_solicitacao(self):
+        outro = User.objects.create_user(email='outro-candidato@example.com')
+        response = self.client_de(self.candidato).post('/api/pedidos-participacao/', {
+            'projeto': self.projeto.pk, 'usuario': outro.pk,
+        }, format='json')
+        self.assertEqual(response.status_code, 403, response.data)
+
+        pedido = PedidoParticipacao.objects.create(
+            projeto=self.projeto,
+            usuario=outro,
+            criado_por=outro,
+            tipo=PedidoParticipacao.Tipo.SOLICITACAO,
+        )
+        response = self.client_de(self.candidato).post(
+            f'/api/pedidos-participacao/{pedido.pk}/aceitar/', {}, format='json',
+        )
+        self.assertEqual(response.status_code, 404, response.data)

@@ -6,4 +6,5 @@ from .projeto import (
 from .status_task import StatusTaskSerializer
 from .task import TaskSerializer
 from .documentos import DocumentoSerializer
+from .pedido_participacao import PedidoParticipacaoSerializer
 from .user import UserRegistrationSerializer, UserSerializer
