@@ -11,7 +11,7 @@ class UsuarioResumidoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'name', 'foto')
+        fields = ('id', 'name', 'email', 'foto')
         read_only_fields = fields
 
 

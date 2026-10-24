@@ -1,7 +1,10 @@
 from django.db import transaction
 from rest_framework import filters
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
 from rest_framework.viewsets import ModelViewSet
 
 from core.models import ParticipacaoProjeto, Projeto, StatusTask
@@ -53,3 +56,39 @@ class ProjetoViewSet(ModelViewSet):
         # As tarefas protegem seus status; exclua-as antes da cascata do projeto.
         projeto.tasks.all().delete()
         return super().destroy(request, *args, **kwargs)
+
+    def _exigir_fundador(self, projeto):
+        if projeto.criador_id != self.request.user.id:
+            raise PermissionDenied('Somente o fundador pode administrar participantes.')
+
+    @action(
+        detail=True,
+        methods=['patch', 'delete'],
+        url_path=r'participantes/(?P<participacao_id>[^/.]+)',
+    )
+    def participante(self, request, pk=None, participacao_id=None):
+        projeto = self.get_object()
+        self._exigir_fundador(projeto)
+        try:
+            participacao = projeto.participacoes.select_related('usuario').get(pk=participacao_id)
+        except ParticipacaoProjeto.DoesNotExist as exc:
+            raise ValidationError({'participacao': 'Participante não encontrado neste projeto.'}) from exc
+
+        if participacao.usuario_id == projeto.criador_id:
+            raise ValidationError({'participacao': 'O fundador não pode ser alterado ou removido.'})
+
+        if request.method == 'DELETE':
+            participacao.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        cargo = request.data.get('cargo')
+        cargos_permitidos = {
+            ParticipacaoProjeto.Cargo.MEMBRO,
+            ParticipacaoProjeto.Cargo.ORGANIZADOR,
+        }
+        if cargo not in cargos_permitidos:
+            raise ValidationError({'cargo': 'Use membro ou organizador.'})
+        participacao.cargo = cargo
+        participacao.save(update_fields=['cargo'])
+        projeto.refresh_from_db()
+        return Response(self.get_serializer(projeto).data)
