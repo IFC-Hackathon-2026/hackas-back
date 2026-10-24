@@ -66,9 +66,12 @@ class ProjetoTaskApiTests(TestCase):
 
     def test_fundador_promove_e_remove_participante(self):
         membro = User.objects.create_user(email='membro-projeto@example.com')
-        participacao = ParticipacaoProjeto.objects.create(
-            projeto=self.projeto, usuario=membro, cargo=ParticipacaoProjeto.Cargo.MEMBRO,
+        response = self.client.post(
+            f'/api/projetos/{self.projeto.pk}/participantes/',
+            {'usuario': membro.pk, 'cargo': 'membro'}, format='json',
         )
+        self.assertEqual(response.status_code, 201, response.data)
+        participacao = ParticipacaoProjeto.objects.get(projeto=self.projeto, usuario=membro)
         url = f'/api/projetos/{self.projeto.pk}/participantes/{participacao.pk}/'
         response = self.client.patch(url, {'cargo': 'organizador'}, format='json')
         self.assertEqual(response.status_code, 200, response.data)
@@ -78,6 +81,25 @@ class ProjetoTaskApiTests(TestCase):
         response = self.client.delete(url)
         self.assertEqual(response.status_code, 204, response.data)
         self.assertFalse(ParticipacaoProjeto.objects.filter(pk=participacao.pk).exists())
+
+        response = self.client.post(
+            f'/api/projetos/{self.projeto.pk}/participantes/',
+            {'usuario': membro.pk, 'cargo': 'membro'}, format='json',
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertTrue(ParticipacaoProjeto.objects.filter(
+            projeto=self.projeto, usuario=membro, cargo=ParticipacaoProjeto.Cargo.MEMBRO,
+        ).exists())
+
+        response = self.client.post(
+            f'/api/projetos/{self.projeto.pk}/participantes/',
+            {'usuario': membro.pk, 'cargo': 'organizador'}, format='json',
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(
+            ParticipacaoProjeto.objects.get(projeto=self.projeto, usuario=membro).cargo,
+            ParticipacaoProjeto.Cargo.ORGANIZADOR,
+        )
 
     def test_membro_nao_administra_participantes(self):
         membro = User.objects.create_user(email='sem-permissao@example.com')
