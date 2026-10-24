@@ -304,11 +304,12 @@ class DocumentoApiTests(TestCase):
         }, format='json')
         self.assertEqual(response.status_code, 400)
 
-    def test_upload_nao_permite_listar_arquivos(self):
+    def test_upload_nao_lista_arquivos_sem_vinculo(self):
         client = APIClient()
         client.force_authenticate(self.membro)
         response = client.get('/api/media/documents/')
-        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['count'], 0)
 
 
 class PedidoParticipacaoApiTests(TestCase):
