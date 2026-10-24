@@ -4,7 +4,7 @@ from .projeto import (
     ProjetoSerializer,
 )
 from .status_task import StatusTaskSerializer
-from .task import TaskSerializer
+from .task import TaskListSerializer, TaskSerializer
 from .documentos import DocumentoSerializer
 from .pedido_participacao import PedidoParticipacaoSerializer
 from .user import UserRegistrationSerializer, UserSerializer

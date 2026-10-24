@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
 
 from core.models import Task
-from core.serializers import TaskSerializer
+from core.serializers import TaskListSerializer, TaskSerializer
 
 
 class TaskViewSet(ModelViewSet):
@@ -15,6 +15,11 @@ class TaskViewSet(ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['categoria', 'responsavel', 'status', 'prioridade']
     search_fields = ['titulo', 'descricao']
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return TaskListSerializer
+        return TaskSerializer
 
     def get_queryset(self):
         projeto_id = self.request.query_params.get('projeto')

@@ -93,9 +93,13 @@ class ProjetoTaskApiTests(TestCase):
         response = self.client.get(f'/api/tarefas/?projeto={self.projeto.pk}')
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data['results'][0]['id'], atrasada.pk)
-        self.assertTrue(response.data['results'][0]['atrasada'])
-        concluida_data = next(item for item in response.data['results'] if item['id'] == concluida.pk)
-        self.assertFalse(concluida_data['atrasada'])
+        self.assertEqual(set(response.data['results'][0]), {
+            'id', 'titulo', 'prioridade', 'criado_em', 'prazo', 'categoria',
+        })
+        response = self.client.get(f'/api/tarefas/{atrasada.pk}/?projeto={self.projeto.pk}')
+        self.assertTrue(response.data['atrasada'])
+        response = self.client.get(f'/api/tarefas/{concluida.pk}/?projeto={self.projeto.pk}')
+        self.assertFalse(response.data['atrasada'])
 
         response = self.client.get(f'/api/projetos/{self.projeto.pk}/')
         self.assertEqual(response.data['resumo_tarefas'], {
@@ -322,3 +326,22 @@ class PedidoParticipacaoApiTests(TestCase):
             f'/api/pedidos-participacao/{pedido.pk}/aceitar/', {}, format='json',
         )
         self.assertEqual(response.status_code, 404, response.data)
+
+    def test_pedido_acompanha_entrada_e_remocao_da_equipe(self):
+        pedido = PedidoParticipacao.objects.create(
+            projeto=self.projeto,
+            usuario=self.candidato,
+            criado_por=self.organizador,
+            tipo=PedidoParticipacao.Tipo.CONVITE,
+        )
+        participacao = ParticipacaoProjeto.objects.create(
+            projeto=self.projeto,
+            usuario=self.candidato,
+            cargo=ParticipacaoProjeto.Cargo.MEMBRO,
+        )
+        pedido.refresh_from_db()
+        self.assertEqual(pedido.status, PedidoParticipacao.Status.ACEITO)
+
+        participacao.delete()
+        pedido.refresh_from_db()
+        self.assertEqual(pedido.status, PedidoParticipacao.Status.REMOVIDO)
