@@ -4,6 +4,16 @@ from django.db import models
 from uploader.models import Image
 
 
+CATEGORIAS_EVENTO = (
+    ('educacionais_profissionais', 'Educacionais e Profissionais'),
+    ('academicos', 'Acadêmicos'),
+    ('workshops', 'Workshops'),
+    ('palestras', 'Palestras'),
+    ('culturais', 'Culturais'),
+    ('esportivos', 'Esportivos'),
+)
+
+
 class Projeto(models.Model):
     nome = models.CharField(max_length=150)
     descricao = models.TextField(blank=True)
@@ -25,11 +35,7 @@ class Projeto(models.Model):
         through='ParticipacaoProjeto',
         related_name='projetos',
     )
-    categorias_projeto = models.ManyToManyField(
-        'core.CategoriaProjeto',
-        related_name='projetos',
-        blank=True,
-    )
+    categorias_evento = models.CharField(max_length=160, blank=True, default='')
 
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)

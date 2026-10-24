@@ -5,14 +5,17 @@ from core.models import StatusTask, Task
 
 
 class TaskListSerializer(serializers.ModelSerializer):
+    situacao = serializers.ChoiceField(choices=Task.Situacao.choices, read_only=True)
+
     class Meta:
         model = Task
-        fields = ('id', 'titulo', 'prioridade', 'criado_em', 'prazo', 'categoria')
+        fields = ('id', 'titulo', 'prioridade', 'criado_em', 'prazo', 'categoria', 'situacao')
         read_only_fields = fields
 
 
 class TaskSerializer(serializers.ModelSerializer):
     atrasada = serializers.SerializerMethodField()
+    situacao = serializers.ChoiceField(choices=Task.Situacao.choices, read_only=True)
 
     class Meta:
         model = Task
@@ -21,7 +24,7 @@ class TaskSerializer(serializers.ModelSerializer):
         extra_kwargs = {'status': {'required': False}}
 
     def get_atrasada(self, task):
-        return bool(task.prazo and not task.concluido_em and task.prazo < timezone.now())
+        return task.situacao == Task.Situacao.ATRASADA
 
     def validate(self, dados):
         projeto = dados.get('projeto', getattr(self.instance, 'projeto', None))

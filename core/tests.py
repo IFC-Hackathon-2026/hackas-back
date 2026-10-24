@@ -8,7 +8,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from core.models import (
-    Categoria, CategoriaProjeto, Documento, PedidoParticipacao, ParticipacaoProjeto, Projeto,
+    Categoria, Documento, PedidoParticipacao, ParticipacaoProjeto, Projeto,
     StatusTask, Task, User,
 )
 from uploader.models import Document
@@ -71,23 +71,31 @@ class ProjetoTaskApiTests(TestCase):
         self.assertIn('previous', response.data)
 
     def test_filtrar_projetos_por_categoria_principal_e_subcategoria(self):
-        principal = CategoriaProjeto.objects.create(nome='Educacionais e profissionais')
-        academicos = CategoriaProjeto.objects.create(nome='Acadêmicos', categoria_pai=principal)
-        workshops = CategoriaProjeto.objects.create(nome='Workshops', categoria_pai=principal)
-        self.projeto.categorias_projeto.add(academicos)
-        outro = Projeto.objects.create(nome='Workshop aberto', criador=self.usuario)
-        outro.categorias_projeto.add(workshops)
-
-        response = self.client.get('/api/categorias-projeto/')
+        response = self.client.patch(
+            f'/api/projetos/{self.projeto.pk}/',
+            {'categorias': ['academicos']},
+            format='json',
+        )
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertEqual(response.data[0]['nome'], principal.nome)
-        self.assertEqual(len(response.data[0]['subcategorias']), 2)
+        self.assertEqual(response.data['categorias'], ['academicos'])
+        Projeto.objects.create(
+            nome='Workshop aberto',
+            criador=self.usuario,
+            categorias_evento='|workshops|',
+        )
 
-        response = self.client.get(f'/api/projetos/?categorias={principal.pk}')
+        response = self.client.get('/api/projetos/?categorias=educacionais_profissionais')
         self.assertEqual(response.data['count'], 2)
-        response = self.client.get(f'/api/projetos/?categorias={academicos.pk}')
+        response = self.client.get('/api/projetos/?categorias=academicos')
         self.assertEqual(response.data['count'], 1)
         self.assertEqual(response.data['results'][0]['id'], self.projeto.pk)
+
+        response = self.client.patch(
+            f'/api/projetos/{self.projeto.pk}/',
+            {'categorias': ['categoria_inexistente']},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400, response.data)
 
     def test_atrasadas_primeiro_e_resumos_do_projeto_e_usuario(self):
         status_aberto = self.projeto.status_tasks.get(finaliza_task=False, ordem=1)
@@ -114,18 +122,29 @@ class ProjetoTaskApiTests(TestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data['results'][0]['id'], atrasada.pk)
         self.assertEqual(set(response.data['results'][0]), {
-            'id', 'titulo', 'prioridade', 'criado_em', 'prazo', 'categoria',
+            'id', 'titulo', 'prioridade', 'criado_em', 'prazo', 'categoria', 'situacao',
         })
+        self.assertEqual(response.data['results'][0]['situacao'], 'atrasada')
         response = self.client.get(f'/api/tarefas/{atrasada.pk}/?projeto={self.projeto.pk}')
         self.assertTrue(response.data['atrasada'])
+        self.assertEqual(response.data['situacao'], 'atrasada')
         response = self.client.get(f'/api/tarefas/{concluida.pk}/?projeto={self.projeto.pk}')
         self.assertFalse(response.data['atrasada'])
+        self.assertEqual(response.data['situacao'], 'concluida')
 
         response = self.client.get(
             f'/api/tarefas/?projeto={self.projeto.pk}&atrasadas=true'
         )
         self.assertEqual(response.data['count'], 1)
         self.assertEqual(response.data['results'][0]['id'], atrasada.pk)
+
+        response = self.client.get(
+            f'/api/tarefas/atrasadas/?projeto={self.projeto.pk}'
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['id'], atrasada.pk)
+        self.assertEqual(response.data['results'][0]['situacao'], 'atrasada')
 
         response = self.client.get(f'/api/projetos/{self.projeto.pk}/')
         self.assertEqual(response.data['resumo_tarefas'], {

@@ -58,13 +58,6 @@ class CategoriaAdmin(admin.ModelAdmin):
     search_fields = ('nome', 'projeto__nome')
 
 
-@admin.register(models.CategoriaProjeto)
-class CategoriaProjetoAdmin(admin.ModelAdmin):
-    list_display = ('nome', 'categoria_pai')
-    list_filter = ('categoria_pai',)
-    search_fields = ('nome',)
-
-
 class ParticipacaoProjetoInline(admin.TabularInline):
     model = models.ParticipacaoProjeto
     extra = 0
@@ -76,7 +69,7 @@ class ProjetoAdmin(admin.ModelAdmin):
     list_display = ('nome', 'criador', 'criado_em', 'atualizado_em')
     list_filter = ('criado_em', 'atualizado_em')
     search_fields = ('nome', 'descricao', 'criador__name', 'criador__email')
-    autocomplete_fields = ('criador', 'categorias_projeto')
+    autocomplete_fields = ('criador',)
     inlines = (ParticipacaoProjetoInline,)
 
     def save_related(self, request, form, formsets, change):
