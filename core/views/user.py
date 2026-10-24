@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
-from core.models import User
+from core.models import PedidoParticipacao, User
 from core.serializers import UserRegistrationSerializer, UserSerializer
 
 
@@ -32,7 +32,13 @@ class UserViewSet(ReadOnlyModelViewSet):
             return Response(serializer.data, status=status.HTTP_200_OK)
 
         serializer = UserSerializer(user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        data = dict(serializer.data)
+        pendentes = user.pedidos_participacao.filter(status=PedidoParticipacao.Status.PENDENTE)
+        data['pendencias'] = {
+            'convites': pendentes.filter(tipo=PedidoParticipacao.Tipo.CONVITE).count(),
+            'solicitacoes': pendentes.filter(tipo=PedidoParticipacao.Tipo.SOLICITACAO).count(),
+        }
+        return Response(data, status=status.HTTP_200_OK)
 
 
 @extend_schema(
