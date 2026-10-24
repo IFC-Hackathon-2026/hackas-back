@@ -115,6 +115,14 @@ class TaskAdmin(admin.ModelAdmin):
         return super().get_queryset(request).prefetch_related('responsavel')
 
 
+@admin.register(models.ComentarioTask)
+class ComentarioTaskAdmin(admin.ModelAdmin):
+    list_display = ('tarefa', 'autor', 'criado_em', 'atualizado_em')
+    list_filter = ('criado_em', 'tarefa__projeto')
+    search_fields = ('conteudo', 'tarefa__titulo', 'autor__name', 'autor__email')
+    autocomplete_fields = ('tarefa', 'autor')
+
+
 @admin.register(models.StatusTask)
 class StatusTaskAdmin(admin.ModelAdmin):
     list_display = ('nome', 'projeto', 'ordem', 'cor', 'finaliza_task')
