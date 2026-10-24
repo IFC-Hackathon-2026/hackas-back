@@ -1,4 +1,5 @@
 from .categoria import CategoriaViewSet
+from .comentario_task import ComentarioTaskViewSet
 from .documentos import DocumentoViewSet
 from .pedido_participacao import PedidoParticipacaoViewSet
 from .projeto import ProjetoViewSet
