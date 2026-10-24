@@ -8,7 +8,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from core.models import (
-    Categoria, Documento, PedidoParticipacao, ParticipacaoProjeto, Projeto,
+    Categoria, ComentarioTask, Documento, PedidoParticipacao, ParticipacaoProjeto, Projeto,
     StatusTask, Task, User,
 )
 from uploader.models import Document
@@ -346,6 +346,114 @@ class DocumentoApiTests(TestCase):
         response = client.get('/api/media/documents/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['count'], 0)
+
+
+class ComentarioTaskApiTests(TestCase):
+    def setUp(self):
+        self.fundador = User.objects.create_user(email='fundador-comentario@example.com')
+        self.autor = User.objects.create_user(email='autor-comentario@example.com')
+        self.outro_membro = User.objects.create_user(email='outro-comentario@example.com')
+        self.visitante = User.objects.create_user(email='visitante-comentario@example.com')
+        self.projeto = Projeto.objects.create(nome='Projeto comentado', criador=self.fundador)
+        for usuario, cargo in (
+            (self.fundador, ParticipacaoProjeto.Cargo.FUNDADOR),
+            (self.autor, ParticipacaoProjeto.Cargo.MEMBRO),
+            (self.outro_membro, ParticipacaoProjeto.Cargo.MEMBRO),
+        ):
+            ParticipacaoProjeto.objects.create(
+                projeto=self.projeto,
+                usuario=usuario,
+                cargo=cargo,
+            )
+        status = StatusTask.objects.create(nome='A fazer', projeto=self.projeto)
+        self.tarefa = Task.objects.create(
+            titulo='Tarefa comentada',
+            projeto=self.projeto,
+            criado_por=self.fundador,
+            status=status,
+        )
+        self.outra_tarefa = Task.objects.create(
+            titulo='Outra tarefa',
+            projeto=self.projeto,
+            criado_por=self.fundador,
+            status=status,
+        )
+
+    def client_de(self, usuario):
+        client = APIClient()
+        client.force_authenticate(usuario)
+        return client
+
+    def test_membro_cria_e_comentario_aparece_somente_na_tarefa(self):
+        client = self.client_de(self.autor)
+        response = client.post('/api/comentarios/', {
+            'tarefa': self.tarefa.pk,
+            'conteudo': '  Primeiro comentário  ',
+            'autor': self.fundador.pk,
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data['conteudo'], 'Primeiro comentário')
+        self.assertEqual(response.data['autor']['id'], self.autor.pk)
+
+        response = client.get(f'/api/comentarios/?tarefa={self.tarefa.pk}')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['count'], 1)
+        response = client.get(f'/api/comentarios/?tarefa={self.outra_tarefa.pk}')
+        self.assertEqual(response.data['count'], 0)
+        response = client.get('/api/comentarios/')
+        self.assertEqual(response.status_code, 400, response.data)
+
+    def test_somente_autor_edita_exclui_e_tarefa_nao_muda(self):
+        comentario = ComentarioTask.objects.create(
+            tarefa=self.tarefa,
+            autor=self.autor,
+            conteudo='Original',
+        )
+        url = f'/api/comentarios/{comentario.pk}/?tarefa={self.tarefa.pk}'
+
+        response = self.client_de(self.outro_membro).patch(
+            url,
+            {'conteudo': 'Alterado por outro'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 403, response.data)
+        response = self.client_de(self.outro_membro).delete(url)
+        self.assertEqual(response.status_code, 403, response.data)
+
+        response = self.client_de(self.autor).patch(
+            url,
+            {'conteudo': 'Editado', 'tarefa': self.outra_tarefa.pk},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400, response.data)
+        response = self.client_de(self.autor).patch(
+            url,
+            {'conteudo': 'Editado'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['conteudo'], 'Editado')
+
+        response = self.client_de(self.autor).delete(url)
+        self.assertEqual(response.status_code, 204, response.data)
+        self.assertFalse(ComentarioTask.objects.filter(pk=comentario.pk).exists())
+
+    def test_usuario_de_fora_nao_acessa_comentarios(self):
+        ComentarioTask.objects.create(
+            tarefa=self.tarefa,
+            autor=self.autor,
+            conteudo='Privado para o projeto',
+        )
+        client = self.client_de(self.visitante)
+        response = client.get(f'/api/comentarios/?tarefa={self.tarefa.pk}')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['count'], 0)
+        response = client.post('/api/comentarios/', {
+            'tarefa': self.tarefa.pk,
+            'conteudo': 'Tentativa',
+        }, format='json')
+        self.assertEqual(response.status_code, 400, response.data)
 
 
 class PedidoParticipacaoApiTests(TestCase):

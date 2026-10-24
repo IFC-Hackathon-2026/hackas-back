@@ -1,4 +1,5 @@
 from .categoria import CategoriaSerializer
+from .comentario_task import ComentarioTaskSerializer
 from .projeto import (
     ParticipacaoProjetoSerializer,
     ProjetoDestaqueSerializer,

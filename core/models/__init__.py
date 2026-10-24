@@ -1,4 +1,5 @@
 from .categoria import Categoria
+from .comentario_task import ComentarioTask
 from .documentos import Documento
 from .pedido_participacao import PedidoParticipacao
 from .projeto import CATEGORIAS_EVENTO, CATEGORIAS_EVENTO_FILHAS, ParticipacaoProjeto, Projeto
