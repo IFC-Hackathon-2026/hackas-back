@@ -1,5 +1,6 @@
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
+from django.db import transaction
+from rest_framework import filters, parsers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
@@ -11,6 +12,7 @@ from core.serializers import DocumentoSerializer
 class DocumentoViewSet(ModelViewSet):
     serializer_class = DocumentoSerializer
     permission_classes = [IsAuthenticated]
+    parser_classes = [parsers.JSONParser, parsers.FormParser, parsers.MultiPartParser]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['tarefa']
     search_fields = ['nome', 'tarefa__titulo']
@@ -26,6 +28,7 @@ class DocumentoViewSet(ModelViewSet):
             queryset = queryset.filter(tarefa__projeto_id=projeto_id)
         return queryset
 
+    @transaction.atomic
     def perform_create(self, serializer):
         # A validação da tarefa garante que qualquer participante, inclusive membro,
         # possa anexar arquivos somente às tarefas dos seus projetos.

@@ -3,6 +3,7 @@ from rest_framework.serializers import ModelSerializer, SlugRelatedField
 
 from core.models import Documento, Task
 from core.serializers.projeto import UsuarioResumidoSerializer
+from uploader.helpers.files import CONTENT_TYPE_PDF, get_content_type
 from uploader.models import Document
 from uploader.serializers import DocumentSerializer
 
@@ -20,6 +21,11 @@ class DocumentoSerializer(ModelSerializer):
         queryset=Document.objects.all(),
         slug_field='attachment_key',
         write_only=True,
+        required=False,
+    )
+    arquivo_upload = serializers.FileField(write_only=True, required=False)
+    descricao_arquivo = serializers.CharField(
+        write_only=True, required=False, allow_blank=True, max_length=255,
     )
     arquivo = DocumentSerializer(read_only=True)
     tarefa_origem = TarefaDocumentoSerializer(source='tarefa', read_only=True)
@@ -34,6 +40,8 @@ class DocumentoSerializer(ModelSerializer):
             'tarefa_origem',
             'arquivo',
             'arquivo_attachment_key',
+            'arquivo_upload',
+            'descricao_arquivo',
             'enviado_por',
             'criado_em',
         )
@@ -50,3 +58,34 @@ class DocumentoSerializer(ModelSerializer):
         if hasattr(arquivo, 'documento'):
             raise serializers.ValidationError('Este arquivo já está vinculado a um documento.')
         return arquivo
+
+    def validate_arquivo_upload(self, arquivo):
+        if get_content_type(arquivo) != CONTENT_TYPE_PDF:
+            raise serializers.ValidationError('Envie um arquivo PDF válido.')
+        return arquivo
+
+    def validate(self, attrs):
+        if self.instance is None:
+            possui_upload = attrs.get('arquivo_upload') is not None
+            possui_arquivo = attrs.get('arquivo') is not None
+            if possui_upload == possui_arquivo:
+                raise serializers.ValidationError(
+                    'Informe exatamente um arquivo_upload ou arquivo_attachment_key.'
+                )
+        return attrs
+
+    def create(self, validated_data):
+        arquivo_upload = validated_data.pop('arquivo_upload', None)
+        descricao = validated_data.pop('descricao_arquivo', '')
+        if arquivo_upload is not None:
+            validated_data['arquivo'] = Document.objects.create(
+                file=arquivo_upload,
+                description=descricao,
+            )
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        # A troca do arquivo não faz parte da edição dos metadados do documento.
+        validated_data.pop('arquivo_upload', None)
+        validated_data.pop('descricao_arquivo', None)
+        return super().update(instance, validated_data)

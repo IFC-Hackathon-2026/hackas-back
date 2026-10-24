@@ -64,6 +64,33 @@ class ProjetoTaskApiTests(TestCase):
         self.assertIn('next', response.data)
         self.assertIn('previous', response.data)
 
+    def test_fundador_promove_e_remove_participante(self):
+        membro = User.objects.create_user(email='membro-projeto@example.com')
+        participacao = ParticipacaoProjeto.objects.create(
+            projeto=self.projeto, usuario=membro, cargo=ParticipacaoProjeto.Cargo.MEMBRO,
+        )
+        url = f'/api/projetos/{self.projeto.pk}/participantes/{participacao.pk}/'
+        response = self.client.patch(url, {'cargo': 'organizador'}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        participacao.refresh_from_db()
+        self.assertEqual(participacao.cargo, ParticipacaoProjeto.Cargo.ORGANIZADOR)
+
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, 204, response.data)
+        self.assertFalse(ParticipacaoProjeto.objects.filter(pk=participacao.pk).exists())
+
+    def test_membro_nao_administra_participantes(self):
+        membro = User.objects.create_user(email='sem-permissao@example.com')
+        participacao = ParticipacaoProjeto.objects.create(
+            projeto=self.projeto, usuario=membro, cargo=ParticipacaoProjeto.Cargo.MEMBRO,
+        )
+        self.client.force_authenticate(membro)
+        response = self.client.patch(
+            f'/api/projetos/{self.projeto.pk}/participantes/{participacao.pk}/',
+            {'cargo': 'organizador'}, format='json',
+        )
+        self.assertEqual(response.status_code, 403, response.data)
+
 
 class TaskMigrationTests(TransactionTestCase):
     def test_preservar_vinculos_ao_converter_para_many_to_many(self):
@@ -129,6 +156,23 @@ class DocumentoApiTests(TestCase):
         response = client.get(f'/api/documentos/?projeto={self.projeto.pk}&tarefa={self.tarefa.pk}')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['count'], 1)
+
+    def test_membro_envia_pdf_e_cria_documento_em_uma_requisicao(self):
+        client = APIClient()
+        client.force_authenticate(self.membro)
+        response = client.post('/api/documentos/', {
+            'nome': 'Ata',
+            'tarefa': self.tarefa.pk,
+            'descricao_arquivo': 'Ata da reunião',
+            'arquivo_upload': SimpleUploadedFile(
+                'ata.pdf', b'%PDF-1.4 teste integrado', content_type='application/pdf',
+            ),
+        }, format='multipart')
+        self.assertEqual(response.status_code, 201, response.data)
+        documento = Documento.objects.get(pk=response.data['id'])
+        self.assertEqual(documento.tarefa_id, self.tarefa.pk)
+        self.assertEqual(documento.arquivo.description, 'Ata da reunião')
+        self.assertEqual(documento.enviado_por_id, self.membro.pk)
 
     def test_usuario_de_fora_nao_acessa_nem_cria_documento(self):
         documento = Documento.objects.create(
